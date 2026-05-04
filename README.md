@@ -14,7 +14,7 @@ The notebook reads as a short paper with five sections:
 
 1. **Introduction** — why Tasmania's market is unusual and what this notebook actually delivers.
 2. **Data** — pulled from AEMO via [NEMOSIS](https://github.com/UNSW-CEEM/NEMOSIS), aggregated to 30-minute trading intervals; price series, TAS1 vs VIC1 scatter, Basslink flow distribution, and the explicit modelling hypothesis.
-3. **Methods** — three baselines (seasonal naïve, VIC1 anchor), histogram gradient boosting on engineered features for the point forecast, and three quantile-GB models (10/50/90 percentile) for the probabilistic forecast band.
+3. **Methods** — seven progressively richer techniques, each one earning its keep against the residual the previous left behind: (1) wavelet + STFT spectral characterisation, (2) Bayesian state-space model with time-varying coupling coefficient (numpyro NUTS), (3) gradient boosting on engineered features, (4) quantile gradient boosting at 10/50/90, (5) split-conformal calibration with finite-sample coverage guarantee, (6) PyTorch temporal convolutional network with quantile heads, (7) graph convolutional network over the five-region NEM graph.
 4. **Results** — point-forecast errors compared, a representative forecast slice, calibration of the probabilistic band, and a confusion matrix on Basslink flow direction.
 5. **Conclusion** — answers to the three claims and what would change with Marinus Link in the picture.
 
@@ -38,4 +38,9 @@ The first run downloads about 12 months of AEMO dispatch CSVs into `data/cache/`
 - `notebook.ipynb` — the whole story, runs top to bottom
 - `data.py` — NEMOSIS pulls, 30-min aggregation, lagged feature builder, time-ordered split
 - `models.py` — naïve baselines, RMSE/MAE/SMAPE helpers, pinball loss + calibration helpers
+- `spectral.py` — continuous Morlet wavelet + STFT
+- `bayes_dlm.py` — numpyro dynamic linear model with time-varying coupling
+- `conformal.py` — split-conformal interval helper
+- `tcn.py` — PyTorch temporal CNN with quantile heads
+- `gnn.py` — graph convolutional network over the NEM regional graph
 - `plots.py` — small matplotlib helpers used by the notebook

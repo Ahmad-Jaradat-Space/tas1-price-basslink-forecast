@@ -150,3 +150,67 @@ def time_split(n, train_frac=0.7, val_frac=0.15):
     n_train = int(n * train_frac)
     n_val = int(n * val_frac)
     return slice(0, n_train), slice(n_train, n_train + n_val), slice(n_train + n_val, n)
+
+
+# ===================================================================
+# Full-NEM pull for the GNN chapter
+# ===================================================================
+NEM_REGIONS = ["NSW1", "QLD1", "SA1", "TAS1", "VIC1"]
+
+# (from, to) MNSP/regulated interconnectors. Sign convention: positive
+# flow on the wire goes from the first region to the second.
+INTERCONNECTORS = [
+    ("NSW1", "QLD1", "NSW1-QLD1"),
+    ("VIC1", "NSW1", "VIC1-NSW1"),
+    ("V-S-MNSP1", "VIC1", "SA1"),       # Murraylink, MNSP
+    ("VIC1", "SA1",  "V-SA"),            # Heywood
+    ("VIC1", "TAS1", "T-V-MNSP1"),       # Basslink (signed by 'from')
+    ("NSW1", "QLD1", "N-Q-MNSP1"),       # Terranora, MNSP
+]
+
+
+def load_nem_graph(start="2024/01/01 00:00:00", end="2025/01/01 00:00:00"):
+    """Return a wide 30-min DataFrame with RRP for every NEM region.
+
+    For the GNN chapter — each row is one timestamp, columns are
+    rrp_{region} for each of the five NEM regions.
+    """
+    _ensure_cache()
+    pieces = []
+    for region in NEM_REGIONS:
+        df = dynamic_data_compiler(
+            start, end, "DISPATCHPRICE", CACHE,
+            filter_cols=["REGIONID"], filter_values=([region],),
+            keep_csv=False,
+        )
+        df = df[df["INTERVENTION"] == 0]
+        df = df[["SETTLEMENTDATE", "RRP"]].rename(
+            columns={"RRP": f"rrp_{region.lower()}"}
+        )
+        pieces.append(df)
+    out = pieces[0]
+    for p in pieces[1:]:
+        out = out.merge(p, on="SETTLEMENTDATE", how="inner")
+    out["SETTLEMENTDATE"] = pd.to_datetime(out["SETTLEMENTDATE"])
+    out = out.set_index("SETTLEMENTDATE").sort_index()
+    out = out.resample("30min", label="right", closed="right").mean().dropna()
+    return out.reset_index()
+
+
+# Adjacency matrix for the NEM regional graph (5 nodes).
+# Entry [i, j] = 1 iff there is a direct interconnector between i and j.
+def nem_adjacency():
+    A = np.zeros((5, 5), dtype=np.float32)
+    idx = {r: i for i, r in enumerate(NEM_REGIONS)}
+    edges = [
+        ("NSW1", "QLD1"),
+        ("NSW1", "VIC1"),
+        ("VIC1", "SA1"),
+        ("VIC1", "TAS1"),
+    ]
+    for a, b in edges:
+        i, j = idx[a], idx[b]
+        A[i, j] = A[j, i] = 1.0
+    # add self-loops for stability
+    A = A + np.eye(5, dtype=np.float32)
+    return A

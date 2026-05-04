@@ -134,6 +134,108 @@ def reliability(prob_pred, y_true, n_bins=10, ax=None):
     return ax
 
 
+def scalogram(coeffs, periods_hours, times, ax=None):
+    """Continuous wavelet transform power, log-periods on the y axis."""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        _, ax = plt.subplots(figsize=(13, 4))
+    power = np.log10(np.abs(coeffs) ** 2 + 1e-9)
+    extent = [0, len(times), periods_hours[0], periods_hours[-1]]
+    im = ax.imshow(power, aspect="auto", origin="lower",
+                   cmap="magma", extent=extent)
+    ax.set_yscale("log")
+    ax.set_yticks([0.5, 1, 6, 12, 24, 24 * 7])
+    ax.get_yaxis().set_major_formatter(
+        plt.matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g} h")
+    )
+    ax.set_ylabel("period")
+    ax.set_xlabel("time index (30-min)")
+    plt.colorbar(im, ax=ax, label="log10 power")
+    return ax
+
+
+def stft_heatmap(spec, starts, periods_hours, ax=None):
+    """STFT power vs (time-window, period). Drops DC and aliased bins."""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        _, ax = plt.subplots(figsize=(13, 3.5))
+    keep = ~np.isnan(periods_hours) & (periods_hours <= 7 * 24) & (periods_hours >= 0.5)
+    img = np.log10(spec[:, keep].T + 1e-6)
+    extent = [starts[0], starts[-1],
+              periods_hours[keep].min(), periods_hours[keep].max()]
+    im = ax.imshow(img, aspect="auto", origin="lower", cmap="viridis",
+                   extent=extent)
+    ax.set_yscale("log")
+    ax.set_ylabel("period (hours)")
+    ax.set_xlabel("window start (30-min index)")
+    plt.colorbar(im, ax=ax, label="log10 power")
+    return ax
+
+
+def posterior_alpha(alpha_med, alpha_lo, alpha_hi, sub_idx, ax=None):
+    """Time-varying coupling coefficient α_t with credible band."""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        _, ax = plt.subplots(figsize=(13, 3.5))
+    ax.fill_between(sub_idx, alpha_lo, alpha_hi, color=ACCENT, alpha=0.25,
+                    label="90% credible band")
+    ax.plot(sub_idx, alpha_med, color=ACCENT, lw=1.4, label="posterior median")
+    ax.axhline(1.0, color=CONTEXT, ls="--", lw=0.8, label="α = 1 (perfect coupling)")
+    ax.set_xlabel("training-set index (subsampled)")
+    ax.set_ylabel("α_t (TAS1 sensitivity to VIC1)")
+    ax.legend()
+    return ax
+
+
+def conformal_panel(times, y_true, mu, intervals, ax=None):
+    """Three side-by-side panels: nominal q10/q90, conformal 80%,
+    conformal 95%. `intervals` is dict label -> (low, high)."""
+    import matplotlib.pyplot as plt
+    n = len(intervals)
+    if ax is None:
+        _, ax = plt.subplots(1, n, figsize=(5.5 * n, 4), sharey=True)
+    if n == 1:
+        ax = [ax]
+    for a, (label, (lo, hi)) in zip(ax, intervals.items()):
+        a.fill_between(times, lo, hi, color=ACCENT, alpha=0.25, label=label)
+        a.plot(times, mu, color=ACCENT, lw=1.0, label="median forecast")
+        a.plot(times, y_true, color="black", lw=1.0, alpha=0.85, label="actual")
+        a.set_title(label)
+        a.set_xlabel("time")
+        a.legend(fontsize=8, loc="upper right")
+    ax[0].set_ylabel("RRP ($/MWh)")
+    return ax
+
+
+def nem_network(adj, region_names, flows=None, ax=None):
+    """Diagram of the NEM regional graph. `flows` is a (n,n) matrix of
+    average absolute flow magnitudes used to weight edge widths."""
+    import matplotlib.pyplot as plt
+    import networkx as nx
+    if ax is None:
+        _, ax = plt.subplots(figsize=(7, 5))
+    G = nx.from_numpy_array((adj - np.eye(adj.shape[0])).astype(int))
+    pos = {0: (-0.6, 0.7), 1: (0.6, 0.9), 2: (-0.9, 0.0),
+           3: (-0.3, -0.9), 4: (0.0, 0.0)}
+    pos = {i: pos[i] for i in range(adj.shape[0])}
+    nx.draw_networkx_nodes(G, pos, node_color=ACCENT, node_size=900, ax=ax)
+    if flows is not None:
+        widths = []
+        edges = list(G.edges())
+        for u, v in edges:
+            w = flows[u, v] / (flows.max() + 1e-9) * 6 + 0.5
+            widths.append(w)
+        nx.draw_networkx_edges(G, pos, edgelist=edges, width=widths,
+                               edge_color=CONTEXT, ax=ax, alpha=0.7)
+    else:
+        nx.draw_networkx_edges(G, pos, width=2, edge_color=CONTEXT, ax=ax)
+    nx.draw_networkx_labels(G, pos, labels={i: r for i, r in enumerate(region_names)},
+                            font_color="white", font_weight="bold", ax=ax)
+    ax.set_xlim(-1.2, 1.0); ax.set_ylim(-1.2, 1.2)
+    ax.axis("off")
+    return ax
+
+
 def feature_importance(names, importances, top=12, ax=None):
     import matplotlib.pyplot as plt
     order = np.argsort(importances)[::-1][:top]
