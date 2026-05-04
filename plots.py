@@ -134,6 +134,54 @@ def reliability(prob_pred, y_true, n_bins=10, ax=None):
     return ax
 
 
+def feature_importance(names, importances, top=12, ax=None):
+    import matplotlib.pyplot as plt
+    order = np.argsort(importances)[::-1][:top]
+    names_sorted = np.array(names)[order][::-1]
+    vals = importances[order][::-1]
+    if ax is None:
+        _, ax = plt.subplots(figsize=(7, 4.5))
+    ax.barh(range(top), vals, color=ACCENT)
+    ax.set_yticks(range(top))
+    ax.set_yticklabels(names_sorted, fontsize=8)
+    ax.set_xlabel("permutation importance")
+    return ax
+
+
+def quantile_calibration_bar(coverage_dict, ax=None):
+    """Show empirical coverage of each nominal interval as a bar chart vs target."""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        _, ax = plt.subplots(figsize=(6, 3.5))
+    nominals = list(coverage_dict.keys())
+    empirical = list(coverage_dict.values())
+    x = np.arange(len(nominals))
+    ax.bar(x - 0.2, nominals, 0.4, color=CONTEXT, label="nominal", alpha=0.6)
+    ax.bar(x + 0.2, empirical, 0.4, color=ACCENT, label="empirical")
+    for i, (n, e) in enumerate(zip(nominals, empirical)):
+        ax.text(i + 0.2, e + 0.02, f"{e:.0%}", ha="center", fontsize=8)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{int(n*100)}%" for n in nominals])
+    ax.set_xlabel("nominal coverage")
+    ax.set_ylabel("coverage")
+    ax.set_ylim(0, 1.1)
+    ax.legend()
+    return ax
+
+
+def flow_score_distribution(scores_pos, scores_neg, ax=None):
+    """Histogram of model scores split by true flow direction."""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        _, ax = plt.subplots(figsize=(7, 3.5))
+    ax.hist(scores_neg, bins=40, alpha=0.5, color=ACCENT, label="true: importing", density=True)
+    ax.hist(scores_pos, bins=40, alpha=0.6, color=WARN, label="true: exporting", density=True)
+    ax.set_xlabel("predicted P(exporting)")
+    ax.set_ylabel("density")
+    ax.legend()
+    return ax
+
+
 def model_comparison(df, ax=None):
     """Horizontal bar chart of point-forecast errors per model."""
     if ax is None:
