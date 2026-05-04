@@ -1,31 +1,101 @@
-"""Plot helpers for the notebook. Same conventions as my other capstones."""
+"""Plot helpers for the notebook. Production-grade design system shared
+across the capstone series."""
 
 import matplotlib as mpl
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-ACCENT = "#2c5f8d"
-WARN = "#c44e52"
-CONTEXT = "#7f7f7f"
-TAS_COLOUR = "#3a8c5f"
-VIC_COLOUR = "#9d62a8"
+# Design palette
+PRIMARY = "#0E4F5F"
+ACCENT  = "#D88C4A"
+GOOD    = "#5C9D7E"
+WARN    = "#B0413E"
+MUTED   = "#7A8C99"
+INK     = "#1A1A1A"
+PAPER   = "#FAFAF7"
+TAS_COLOUR = PRIMARY
+VIC_COLOUR = "#5E548E"
+CONTEXT = MUTED
 
 
 def apply_style():
-    sns.set_theme(style="whitegrid", context="notebook")
+    sns.set_theme(style="white", context="notebook")
     mpl.rcParams.update({
-        "figure.dpi": 110,
-        "savefig.dpi": 110,
+        "figure.dpi": 130,
+        "savefig.dpi": 140,
+        "figure.facecolor": PAPER,
+        "axes.facecolor": PAPER,
+        "savefig.facecolor": PAPER,
+        "savefig.edgecolor": PAPER,
         "axes.titleweight": "semibold",
-        "axes.titlesize": 12,
-        "axes.labelsize": 10,
+        "axes.titlesize": 12.5,
+        "axes.titlepad": 12,
+        "axes.titlelocation": "left",
+        "axes.labelsize": 10.5,
+        "axes.labelcolor": INK,
+        "axes.edgecolor": "#BFC4CA",
+        "axes.linewidth": 0.9,
         "axes.spines.top": False,
         "axes.spines.right": False,
         "axes.grid": True,
-        "grid.alpha": 0.25,
+        "grid.alpha": 0.18,
+        "grid.linewidth": 0.6,
+        "xtick.color": INK,
+        "ytick.color": INK,
+        "xtick.labelsize": 9.5,
+        "ytick.labelsize": 9.5,
         "legend.frameon": False,
+        "legend.fontsize": 9.5,
+        "font.family": "sans-serif",
+        "font.size": 10.5,
     })
+    try:
+        mpl.rcParams["text.parse_math"] = False
+    except KeyError:
+        pass
+
+
+def kpi_card(ax, value, label, sub=None, color=PRIMARY):
+    ax.axis("off")
+    ax.text(0.5, 0.62, value, ha="center", va="center",
+            fontsize=22, color=color, fontweight="bold", transform=ax.transAxes)
+    ax.text(0.5, 0.30, label, ha="center", va="center",
+            fontsize=10, color=INK, transform=ax.transAxes)
+    if sub:
+        ax.text(0.5, 0.12, sub, ha="center", va="center",
+                fontsize=8.5, color=MUTED, transform=ax.transAxes, style="italic")
+    ax.add_patch(mpatches.Rectangle((0, 0), 1, 1, transform=ax.transAxes,
+                                    fill=False, ec="#D8DCE2", lw=1.0))
+
+
+def kpi_banner(values):
+    fig, axes = plt.subplots(1, len(values), figsize=(2.8 * len(values), 1.8))
+    if len(values) == 1:
+        axes = [axes]
+    palette = [PRIMARY, ACCENT, WARN, GOOD, "#5E548E"]
+    for ax, v, color in zip(axes, values, palette):
+        kpi_card(ax, *v, color=color)
+    plt.tight_layout()
+    return fig
+
+
+def business_summary(rows, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 0.55 * len(rows) + 1))
+    ax.axis("off")
+    n = len(rows)
+    for i, (lhs, rhs) in enumerate(rows):
+        y = 1 - (i + 0.5) / n
+        ax.text(0.02, y, lhs, transform=ax.transAxes,
+                fontsize=10.5, color=INK, fontweight="bold", va="center")
+        ax.text(0.34, y, rhs, transform=ax.transAxes,
+                fontsize=10, color=INK, va="center")
+        ax.plot([0.01, 0.99], [1 - i / n, 1 - i / n],
+                color="#E0E4EA", lw=0.6, transform=ax.transAxes)
+    ax.set_xlim(0, 1)
+    return ax
 
 
 def caption(fig, text):
