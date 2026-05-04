@@ -284,20 +284,48 @@ def flow_score_distribution(scores_pos, scores_neg, ax=None):
     return ax
 
 
-def model_comparison(df, ax=None):
-    """Horizontal bar chart of point-forecast errors per model."""
+def model_comparison(df, ax=None, sort_by="MAE", baseline_models=None):
+    """Horizontal bar chart of point-forecast errors per model.
+
+    `baseline_models` is a list/set of model names to render with a
+    hatched bar so the reader sees which entries are structural baselines
+    rather than ML results. CIs (RMSE_lo/RMSE_hi/MAE_lo/MAE_hi columns)
+    are drawn as thin black error bars when present.
+    """
     if ax is None:
-        _, ax = plt.subplots(figsize=(8, 4.2))
-    df = df.sort_values("RMSE", ascending=False)
+        _, ax = plt.subplots(figsize=(8, 4.6))
+    df = df.sort_values(sort_by, ascending=False).reset_index(drop=True)
     y = np.arange(len(df))
     h = 0.35
-    ax.barh(y - h / 2, df["RMSE"], height=h, label="RMSE", color=ACCENT)
-    ax.barh(y + h / 2, df["MAE"], height=h, label="MAE", color=WARN)
+    baseline_models = set(baseline_models or [])
+    rmse_color = [CONTEXT if m in baseline_models else ACCENT for m in df["model"]]
+    mae_color = [CONTEXT if m in baseline_models else WARN for m in df["model"]]
+    rmse_hatch = ["///" if m in baseline_models else "" for m in df["model"]]
+    bars_rmse = ax.barh(y - h / 2, df["RMSE"], height=h, color=rmse_color,
+                        label="RMSE", edgecolor="white")
+    for bar, hatch in zip(bars_rmse, rmse_hatch):
+        bar.set_hatch(hatch)
+    ax.barh(y + h / 2, df["MAE"], height=h, color=mae_color, label="MAE",
+            edgecolor="white")
+    if {"RMSE_lo", "RMSE_hi"}.issubset(df.columns):
+        ax.errorbar(df["RMSE"], y - h / 2,
+                    xerr=[df["RMSE"] - df["RMSE_lo"], df["RMSE_hi"] - df["RMSE"]],
+                    fmt="none", ecolor="black", capsize=3, lw=0.8)
+    if {"MAE_lo", "MAE_hi"}.issubset(df.columns):
+        ax.errorbar(df["MAE"], y + h / 2,
+                    xerr=[df["MAE"] - df["MAE_lo"], df["MAE_hi"] - df["MAE"]],
+                    fmt="none", ecolor="black", capsize=3, lw=0.8)
     for i, (a, b) in enumerate(zip(df["RMSE"], df["MAE"])):
         ax.text(a + 0.5, i - h / 2, f"{a:.1f}", va="center", fontsize=8)
         ax.text(b + 0.5, i + h / 2, f"{b:.1f}", va="center", fontsize=8)
     ax.set_yticks(y)
     ax.set_yticklabels(df["model"])
     ax.set_xlabel("error ($/MWh)")
-    ax.legend(loc="lower right")
+    legend_lines = [
+        plt.Rectangle((0, 0), 1, 1, color=ACCENT, label="ML model — RMSE"),
+        plt.Rectangle((0, 0), 1, 1, color=WARN, label="ML model — MAE"),
+        plt.Rectangle((0, 0), 1, 1, color=CONTEXT, hatch="///",
+                      label="structural baseline"),
+    ]
+    ax.legend(handles=legend_lines, loc="lower right", fontsize=8)
     return ax
