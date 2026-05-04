@@ -5,7 +5,7 @@ Tasmania's wholesale electricity market is structurally weird and that's what ma
 The notebook puts three claims on trial:
 
 1. The "copy VIC1" baseline is hard to beat on average.
-2. Where ML earns its keep is in Basslink-congested half-hours.
+2. The ML models add value in the Basslink-congested half-hours, not on average.
 3. A probabilistic forecast (10/50/90% quantile band) is more honest than a point forecast for a market with this much tail risk.
 
 ## How the notebook is laid out
@@ -14,7 +14,7 @@ The notebook reads as a short paper with five sections:
 
 1. **Introduction** — why Tasmania's market is unusual and what this notebook actually delivers.
 2. **Data** — pulled from AEMO via [NEMOSIS](https://github.com/UNSW-CEEM/NEMOSIS), aggregated to 30-minute trading intervals; price series, TAS1 vs VIC1 scatter, Basslink flow distribution, and the explicit modelling hypothesis.
-3. **Methods** — seven progressively richer techniques, each one earning its keep against the residual the previous left behind: (1) wavelet + STFT spectral characterisation, (2) Bayesian state-space model with time-varying coupling coefficient (numpyro NUTS), (3) gradient boosting on engineered features, (4) quantile gradient boosting at 10/50/90, (5) split-conformal calibration with finite-sample coverage guarantee, (6) PyTorch temporal convolutional network with quantile heads, (7) graph convolutional network over the five-region NEM graph.
+3. **Methods** — seven techniques in increasing complexity, each addressing a question the previous one did not: (1) wavelet + STFT spectral characterisation, (2) Bayesian state-space model with time-varying coupling coefficient (numpyro NUTS), (3) gradient boosting on engineered features, (4) quantile gradient boosting at 10/50/90, (5) split-conformal calibration with a finite-sample coverage guarantee, (6) PyTorch temporal convolutional network with quantile heads, (7) graph convolutional network over the five-region NEM graph.
 4. **Results** — point-forecast errors compared, a representative forecast slice, calibration of the probabilistic band, and a confusion matrix on Basslink flow direction.
 5. **Conclusion** — answers to the three claims and what would change with Marinus Link in the picture.
 
